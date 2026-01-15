@@ -38,16 +38,18 @@ options(DT.options = list(scrollY="200px", #500
 
                           autoWidth = TRUE))
 library(mregions2) # to query marine geospatial boundaries
+library(leaflet.extras)
 
 # database connection
-
-con <- etn::connect_to_etn(Sys.getenv("userid"), Sys.getenv("pwd"))
+Sys.getenv("userid")
+Sys.getenv("pwd")
+#con <- etn::connect_to_etn(Sys.getenv("userid"), Sys.getenv("pwd"))
 
 # boundaries of the belgian part of the north sea (BPNS)
 
-BPNS <- mregions2::gaz_search(3293) %>% mregions2::gaz_geometry()
-Belgium <- mregions2::gaz_search(14) %>% mregions2::gaz_geometry()
-Schelde_estuary <- mregions2::gaz_search(4812) %>% mregions2::gaz_geometry()
+#BPNS <- mregions2::gaz_search(3293) %>% mregions2::gaz_geometry()
+#Belgium <- mregions2::gaz_search(14) %>% mregions2::gaz_geometry()
+#Schelde_estuary <- mregions2::gaz_search(4812) %>% mregions2::gaz_geometry()
 
 ```
 
@@ -89,7 +91,7 @@ Schelde_estuary <- mregions2::gaz_search(4812) %>% mregions2::gaz_geometry()
   }
 
   .dataTable {
-    font-size: 13px; /* Adjust the size as needed */
+    font-size: 8px; /* Adjust the size as needed */
   }
 </style>
 
@@ -100,35 +102,36 @@ Schelde_estuary <- mregions2::gaz_search(4812) %>% mregions2::gaz_geometry()
 
 # GET STATIONS WITHIN PBARN
 
-PBARN_acoustic_projects <- c()
-# c("ws1", "ws2", "cpodnetwork", "bpns", 'zeeschelde', "bovenschelde", "dijle", "Dijle_VPS", "Albertkanaal_VPS_Ham", "Albertkanaal_VPS_Hasselt", "albert", "	Walloneel")
+MED_acoustic_projects <- c("ResMed","CONNECT-MED")#projects we want to get the info from
 
 # acoustic deployments
 
 all_deployments <- 
-  etn::get_acoustic_deployments(con, open_only = T) %>%
+  etn::get_acoustic_deployments(open_only = T) %>%
     dplyr::filter(!is.na(deploy_longitude) & !is.na(deploy_latitude)) %>%
     sf::st_as_sf(., coords = c("deploy_longitude", "deploy_latitude"), crs = 4326)
 
+deployments_MED <- all_deployments %>%
+  filter(acoustic_project_code %in% MED_acoustic_projects)
 
-within_BPNS <- sf::st_within(all_deployments, BPNS) %>% # get back list with TRUE or FALSE if deployment location is within BPNS boundaries
-  apply(., 1, any)
-within_Belgium <-  sf::st_within(all_deployments, Belgium) %>% # get back list with TRUE or FALSE if deployment location is within Belgium's boundaries
-  apply(., 1, any)
-within_Schelde_estuary <- sf::st_within(all_deployments, Schelde_estuary) %>% # get back list with TRUE or FALSE if deployment location is within the Scheldt estuary's boundaries
-  apply(., 1, any) 
-
-
-deployments_PBARN <- all_deployments %>%
-  dplyr::mutate(within_BPNS = within_BPNS,
-                within_Belgium = within_Belgium) %>%
-  dplyr::filter(within_BPNS == TRUE | within_BPNS == TRUE | within_Schelde_estuary == TRUE| acoustic_project_code %in% PBARN_acoustic_projects) # filter out stations that are not in any of the boundaries defined
-
-stations_PBARN <- 
-  deployments_PBARN %>% 
+#within_BPNS <- sf::st_within(all_deployments, BPNS) %>% # get back list with TRUE or FALSE if deployment location #is within BPNS boundaries
+#  apply(., 1, any)
+#within_Belgium <-  sf::st_within(all_deployments, Belgium) %>% # get back list with TRUE or FALSE if deployment #location is within Belgium's boundaries
+#  apply(., 1, any)
+#within_Schelde_estuary <- sf::st_within(all_deployments, Schelde_estuary) %>% # get back list with TRUE or FALSE #if deployment location is within the Scheldt estuary's boundaries
+#  apply(., 1, any) 
+#
+#
+#deployments_MED <- all_deployments %>%
+#  dplyr::mutate(within_BPNS = within_BPNS,
+#                within_Belgium = within_Belgium) %>%
+#  dplyr::filter(within_BPNS == TRUE | within_BPNS == TRUE | within_Schelde_estuary == TRUE| acoustic_project_code #%in% PBARN_acoustic_projects) # filter out stations that are not in any of the boundaries defined
+#
+stations_MED <- 
+  deployments_MED %>% 
     dplyr::select(station_name) %>%
     unique() # get the station names
-
+#
 # quick map to check
 # leaflet::leaflet() %>%
 #   addTiles() %>%
@@ -140,14 +143,14 @@ stations_PBARN <-
 
 #########
 # get currently active deployments
-current_deployments <- etn::get_acoustic_deployments(con, deployment_id = deployments_PBARN$deployment_id) 
+current_deployments <- etn::get_acoustic_deployments(deployment_id = deployments_MED$deployment_id) 
 
 # get information on receivers currently deployed
-current_receivers <- etn::get_acoustic_receivers(con, receiver_id = current_deployments$receiver_id)
+current_receivers <- etn::get_acoustic_receivers(receiver_id = current_deployments$receiver_id)
 
 # get last deployment of each of the receivers currently deployed
 last_deployments <- 
-  etn::get_acoustic_deployments(con, receiver_id = current_deployments$receiver_id,
+  etn::get_acoustic_deployments(receiver_id = current_deployments$receiver_id,
                                 open_only = FALSE) %>%
     dplyr::filter(!deployment_id %in% current_deployments$deployment_id) %>% #remove currently open deployments (because we want the previous deployments)
     dplyr::group_by(receiver_id) %>%
@@ -395,30 +398,44 @@ The dashboard helps to:
 north.arrow.icon <-
   "<img src='https://www.clipartbest.com/cliparts/yTo/Lgr/yToLgryGc.png' style='width:40px;height:50px;'>"
 
-icon_anchor <- leaflet::makeAwesomeIcon(
+deployments_ResMed <- current_deployments %>% 
+                     dplyr::filter(acoustic_project_code == "ResMed")
+
+deployments_CONNECTMED <- current_deployments %>% 
+                     dplyr::filter(acoustic_project_code == "CONNECT-MED")
+
+
+icon_anchor_resmed <- leaflet::makeAwesomeIcon(
   icon = "anchor",
   iconColor = 'lightgray',
-  markerColor =  ifelse(current_deployments$needs_battery_change == "manual check", 'black', 
-                     ifelse(current_deployments$needs_battery_change == 1, 'orange', 'darkblue')),
+  markerColor =  ifelse(deployments_ResMed$needs_battery_change == "manual check", 'black', 
+                     ifelse(deployments_ResMed$needs_battery_change == 1, 'orange', 'darkblue')),
   library = "fa",
   squareMarker = F
   # ,spin = T
 )
 
-library(leaflet)
-library(leafem)
-library(leaflet.extras)
+icon_anchor_connectmed <- leaflet::makeAwesomeIcon(
+  icon = "anchor",
+  iconColor = 'lightgray',
+  markerColor =  ifelse(deployments_CONNECTMED$needs_battery_change == "manual check", 'black', 
+                     ifelse(deployments_CONNECTMED$needs_battery_change == 1, 'orange', 'darkblue')),
+  library = "fa",
+  squareMarker = F
+  # ,spin = T
+)
 
 receiver_map <- 
   leaflet() %>%
   addTiles() %>%
-  addPolygons(data = BPNS, color = "darkgrey",
-              weight = 2,
-              opacity = 1.0,
-              fillOpacity = 0) %>%
-
-    addAwesomeMarkers(data = current_deployments,
-                   icon = icon_anchor,
+  #addPolygons(data = BPNS, color = "darkgrey",
+  #            weight = 2,
+  #            opacity = 1.0,
+  #            fillOpacity = 0) %>%
+#
+    addAwesomeMarkers(data = deployments_ResMed, #%>% 
+                        # dplyr::filter(acoustic_project_code == "ResMed"),
+                   icon = icon_anchor_resmed,
                    lat = ~deploy_latitude,
                    lng = ~deploy_longitude,
                    popup = ~paste(
@@ -433,12 +450,34 @@ receiver_map <-
                            "<b>Battery status:</b> ", ifelse(needs_battery_change == "manual check", "Needs manual check",
                                                              ifelse(needs_battery_change == 1, "Needs battery change", "No battery change needed"))
                            ),
-                     group = "zoom to data",
+                     group = "ResMed",
                    label = ~paste0("Station: ", station_name)
                    ) %>%
   
+ addAwesomeMarkers(data = deployments_CONNECTMED,
+                  icon = icon_anchor_connectmed,
+                  lat = ~deploy_latitude,
+                  lng = ~deploy_longitude,
+                  popup = ~paste(
+                          "<b>Station:</b> ", station_name, "<br>",
+                          "<b>Project:</b> ", acoustic_project_code, "<br>",
+                          "<b>Receiver id:</b> ", receiver_id, "<br>",
+                          "<b>Deploy date:</b> ", deploy_date_time, "<br>",
+                          "<b>Deployment id:</b> ", deployment_id, "<br>",
+                          "<b>Battery installation:</b> ",battery_installation_date, "<br>",
+                          "<b>Estimated battery end:</b> ", battery_estimated_end_date, "<br>", #
+                          "<b>Receiver battery life (months):</b> ", battery_estimated_life_months, "<br>",
+                          "<b>Battery status:</b> ", ifelse(needs_battery_change == "manual check", "Needs manual check",
+                                                            ifelse(needs_battery_change == 1, "Needs battery change", "No battery #change needed"))
+                          ),
+                    group = "CONNECT-MED",
+                  label = ~paste0("Station: ", station_name)
+                  ) %>%
+  
   addLegend(position = "topright", opacity = 1,
-            colors = current_deployments$colour %>% unique(), labels = c("Needs manual check", "Needs battery change", "Battery is OK")) %>%
+            colors = deployments_CONNECTMED$colour %>% unique(), labels = c("Needs manual check", "Needs battery change", "Battery is OK")) %>%
+  leaflet::addLayersControl(overlayGroups = c("ResMed","CONNECT-MED"),  
+                            options = layersControlOptions(collapsed = FALSE)) %>% 
   leafem::addMouseCoordinates() %>%
   leaflet::addScaleBar(position = "topright",
               options = scaleBarOptions(
@@ -564,7 +603,7 @@ Row {data-height=950}
 ```
 
 
-```{r table QCall}
+```{r table QCall, echo =TRUE}
 DT::datatable(current_deployments_manual_check %>%
               dplyr::select(category, deployment_id, acoustic_project_code, receiver_id, status, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time, 
                             comments, acoustic_project_code, mooring_type, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time, previous_recover_date_time, battery_estimated_life_months),
@@ -596,7 +635,7 @@ DT::datatable(current_deployments_manual_check %>%
     backgroundColor = styleEqual(c(1, 2, 3), c(cat1_colour, cat2_colour, cat3_colour)),
     # target = 'column',
     selector = 'td'
-  )
+  ) %>%  print()
 
 ```
 
@@ -772,7 +811,7 @@ Row {data-height=920}
 
 
 
-```{r receiver dt, include=TRUE, echo=FALSE}
+```{r receiver dt, include=TRUE, echo=TRUE}
 
 DT::datatable(current_deployments %>%
               dplyr::select(deployment_id, receiver_id, acoustic_project_code, needs_battery_change, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time, 
