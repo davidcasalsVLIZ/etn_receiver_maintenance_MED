@@ -14,7 +14,8 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, warnings = F)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+
 
 # Libraries 
 library(flexdashboard)
@@ -34,16 +35,17 @@ options(DT.options = list(scrollY="200px", #500
 
                           scrollX="200px", #200
 
-                          # pageLength = 5, 
+                          # pageLength = 5,
 
                           autoWidth = TRUE))
+library(reactable)
 library(mregions2) # to query marine geospatial boundaries
 library(leaflet.extras)
 
 # database connection
-Sys.getenv("userid")
-Sys.getenv("pwd")
-#con <- etn::connect_to_etn(Sys.getenv("userid"), Sys.getenv("pwd"))
+#Sys.getenv("userid")
+#Sys.getenv("pwd")
+con <- etn::connect_to_etn(Sys.getenv("userid"), Sys.getenv("pwd"))
 
 # boundaries of the belgian part of the north sea (BPNS)
 
@@ -282,26 +284,31 @@ Row {data-height=80}
 
 ### {#etn-logo data-width=150}
 
+```{r ETN logo, out.width="100%"}
+knitr::include_graphics("images/etn_logo.png")
 
-```{r ETN logo}
-
-include_graphics("https://europeantrackingnetwork.org/sites/europeantrackingnetwork.org/files/managed/logo_ETN.png") 
-
-# # Image URL
-# image_url <- "https://europeantrackingnetwork.org/sites/europeantrackingnetwork.org/files/managed/logo_ETN.png"
-# 
-# # Hyperlink URL
-# hyperlink_url <- "https://europeantrackingnetwork.org/en"
-# 
-# # Combine image and hyperlink within an HTML block
-# html_block <- div(
-#   # img(src = image_url, style = "width:70%; height:50%;"),
-#   a(href = hyperlink_url, target = "_blank", "ETN website")
-# )
-# 
-# # Display the HTML block
-# html_block
 ```
+
+
+<!-- ```{r ETN logo} -->
+
+<!-- knitr::include_graphics("https://europeantrackingnetwork.org/sites/europeantrackingnetwork.org/files/managed/logo_ETN.png") -->
+
+<!-- # # Image URL -->
+<!-- # image_url <- "https://europeantrackingnetwork.org/sites/europeantrackingnetwork.org/files/managed/logo_ETN.png" -->
+<!-- #  -->
+<!-- # # Hyperlink URL -->
+<!-- # hyperlink_url <- "https://europeantrackingnetwork.org/en" -->
+<!-- #  -->
+<!-- # # Combine image and hyperlink within an HTML block -->
+<!-- # html_block <- div( -->
+<!-- #   # img(src = image_url, style = "width:70%; height:50%;"), -->
+<!-- #   a(href = hyperlink_url, target = "_blank", "ETN website") -->
+<!-- # ) -->
+<!-- #  -->
+<!-- # # Display the HTML block -->
+<!-- # html_block -->
+<!-- ``` -->
 
 
 ### active deployments {#vBox-active-deployments}
@@ -377,7 +384,22 @@ Row {data-height=920}
 ### Quick info {#about-quickInfo data-width=250}
 
 
-This dashboard gives an overview on all open acoustic deployments within the boundaries of the Belgian Part of the North Sea. It is effective as of `r Sys.Date()`.
+This dashboard gives an overview on all open acoustic deployments within the boundaries of the Belgian Part of the North Sea. 
+
+
+> The deployment data was last updated on: `r Sys.Date()`.
+
+
+<!-- ```{r valid-asof, include = TRUE} -->
+
+<!-- valueBox(Sys.Date(),  -->
+<!--          caption = "The deployment data was last updated on: ", -->
+<!--          icon = "fa-calendar", -->
+<!--          color = "white") -->
+
+<!-- ``` -->
+
+
 
 The dashboard helps to:
 
@@ -386,6 +408,13 @@ The dashboard helps to:
 * Get a visual overview of current receiver deployments 
 
 * Plan receiver maintenance campaigns 
+
+
+
+```{r testtable, include = FALSE, echo=FALSE}
+# for the moment, I only get the datatable() obj to show in Tab 2 & 3 when this code chunk is there...Magic
+DT::datatable(all_deployments %>% head())
+```
 
 
 ### Map {#about-map data-width=750}
@@ -603,13 +632,15 @@ Row {data-height=950}
 ```
 
 
-```{r table QCall, echo =TRUE}
+```{r table QCall, echo =F}
+
+#DT::datatable(current_deployments_manual_check)
 DT::datatable(current_deployments_manual_check %>%
-              dplyr::select(category, deployment_id, acoustic_project_code, receiver_id, status, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time, 
+              dplyr::select(category, deployment_id, acoustic_project_code, receiver_id, status, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time,
                             comments, acoustic_project_code, mooring_type, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time, previous_recover_date_time, battery_estimated_life_months),
               rownames = F,
-              filter = 'top', 
-              extension = 'Buttons',
+              filter = 'top',
+              extensions = 'Buttons',
               options = list(
                 dom = 'Bfrtip',
                 buttons = list('copy', 'print', list(extend = 'collection',
@@ -621,7 +652,7 @@ DT::datatable(current_deployments_manual_check %>%
               # options = list(
               #   dom = 'Bfrtip',
               #   buttons = c('pdf', 'csv', 'excel', 'print','copy'),
-              
+
                 pageLength = current_deployments_1 %>% nrow(),
                 autoWidth = TRUE,
                 columnDefs = list(list(className = 'dt-center', targets = '_all')))
@@ -635,7 +666,7 @@ DT::datatable(current_deployments_manual_check %>%
     backgroundColor = styleEqual(c(1, 2, 3), c(cat1_colour, cat2_colour, cat3_colour)),
     # target = 'column',
     selector = 'td'
-  ) %>%  print()
+  )
 
 ```
 
@@ -648,7 +679,7 @@ DT::datatable(current_deployments_manual_check %>%
 <!--                             comments, deploy_latitude, deploy_longitude, acoustic_project_code, mooring_type, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time, previous_recover_date_time, battery_estimated_life_months), -->
 <!--               rownames = F, -->
 <!--               filter = 'top',  -->
-<!--               extension = 'Buttons', -->
+<!--               extensions = 'Buttons', -->
 <!--               options = list( -->
 <!--                 dom = 'Bfrtip', -->
 <!--                 buttons = c('pdf', 'csv', 'excel', 'print','copy'), -->
@@ -670,7 +701,7 @@ DT::datatable(current_deployments_manual_check %>%
 <!--                             comments, deploy_latitude, deploy_longitude, acoustic_project_code, mooring_type, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time, previous_recover_date_time, battery_estimated_life_months), -->
 <!--               rownames = F, -->
 <!--               filter = 'top',  -->
-<!--               extension = 'Buttons', -->
+<!--               extensions = 'Buttons', -->
 <!--               options = list( -->
 <!--                 dom = 'Bfrtip', -->
 <!--                 buttons = c('pdf', 'csv', 'excel', 'print','copy'), -->
@@ -688,7 +719,7 @@ DT::datatable(current_deployments_manual_check %>%
 <!--                             comments, deploy_latitude, deploy_longitude, acoustic_project_code, mooring_type, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time, previous_recover_date_time, battery_estimated_life_months), -->
 <!--               rownames = F, -->
 <!--               filter = 'top',  -->
-<!--               extension = 'Buttons', -->
+<!--               extensions = 'Buttons', -->
 <!--               options = list( -->
 <!--                 dom = 'Bfrtip', -->
 <!--                 buttons = c('pdf', 'csv', 'excel', 'print','copy'), -->
@@ -708,26 +739,15 @@ Row {data-height=80}
 ### {#etn-logo data-width=150}
 
 
-```{r ETN logo2}
-
-include_graphics("https://europeantrackingnetwork.org/sites/europeantrackingnetwork.org/files/managed/logo_ETN.png") 
-
-# # Image URL
-# image_url <- "https://europeantrackingnetwork.org/sites/europeantrackingnetwork.org/files/managed/logo_ETN.png"
-# 
-# # Hyperlink URL
-# hyperlink_url <- "https://europeantrackingnetwork.org/en"
-# 
-# # Combine image and hyperlink within an HTML block
-# html_block <- div(
-#   # img(src = image_url, style = "width:70%; height:50%;"),
-#   a(href = hyperlink_url, target = "_blank", "ETN website")
-# )
-# 
-# # Display the HTML block
-# html_block
+```{r testtable2, include = FALSE, echo=FALSE}
+# for the moment, I only get the datatable() obj to show in Tab 2 & 3 when this code chunk is there...Magic
+DT::datatable(all_deployments %>% head())
 ```
 
+```{r ETN logo2, out.width="100%"}
+knitr::include_graphics("images/etn_logo.png")
+
+```
 
 ### active deployments {#vBox-active-deployments}
 
@@ -801,6 +821,7 @@ Row {data-height=920}
 
 ### Information on currently active deployments with receiver battery status
 
+
 ```{css tableheight1}
 <style>
 .dataTables_scrollBody {
@@ -810,16 +831,15 @@ Row {data-height=920}
 ```
 
 
-
-```{r receiver dt, include=TRUE, echo=TRUE}
+```{r receiver dt, include=TRUE, echo=FALSE}
 
 DT::datatable(current_deployments %>%
-              dplyr::select(deployment_id, receiver_id, acoustic_project_code, needs_battery_change, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time, 
+              dplyr::select(deployment_id, receiver_id, acoustic_project_code, needs_battery_change, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time,
                             deploy_latitude, deploy_longitude, acoustic_project_code, mooring_type, comments, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time,
                             previous_recover_date_time, battery_estimated_life_months),
               rownames = F,
-              filter = 'top', 
-              extension = 'Buttons',
+              filter = 'top',
+              extensions = 'Buttons',
               options = list(
                 pageLength = current_deployments %>% nrow(),
                 dom = 'Bfrtip',
