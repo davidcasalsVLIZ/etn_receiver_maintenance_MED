@@ -30,6 +30,7 @@ library(htmltools) # for html components
 library(leaflet)# for interactive maps
 library(knitr) # for knitting the document into a e.g. .html file
 library(leafem) # for extras in leaflet maps
+library(leaflet.extras) # more leaflet extras
 library(DT) # for interactive tables
 options(DT.options = list(scrollY="200px", #500
 
@@ -38,51 +39,38 @@ options(DT.options = list(scrollY="200px", #500
                           # pageLength = 5,
 
                           autoWidth = TRUE))
-library(reactable)
-library(mregions2) # to query marine geospatial boundaries
-library(leaflet.extras)
+#library(mregions2) # to query marine geospatial boundaries
+
+
 
 # database connection
-#Sys.getenv("userid")
-#Sys.getenv("pwd")
-con <- etn::connect_to_etn(Sys.getenv("userid"), Sys.getenv("pwd"))
 
-# boundaries of the belgian part of the north sea (BPNS)
+## REMINDER: if you add a new .Renviron file, or if you update it, RESTART THE R SESSION for your changes to take effect ;)
 
-#BPNS <- mregions2::gaz_search(3293) %>% mregions2::gaz_geometry()
-#Belgium <- mregions2::gaz_search(14) %>% mregions2::gaz_geometry()
-#Schelde_estuary <- mregions2::gaz_search(4812) %>% mregions2::gaz_geometry()
+if(packageVersion('etn') >= "2.3.0"){
+  # if 'new' version of etn R package: read .Renviron directly
+  Sys.getenv("userid")
+  Sys.getenv("pwd")
+}else{
+  # if 'old' version: create con object
+  con <- etn::connect_to_etn(Sys.getenv("userid"), Sys.getenv("pwd"))}
+
+
+
 
 ```
 
 
-<!-- ```{css, echo=FALSE} -->
+<!--SOME CSS SPECIFICATIONS-->
 
-<!-- .small { -->
-<!--   zoom: 55%; -->
-
-<!-- ``` -->
 
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=0.6">
 </head>
 
 
-<!-- <style type="text/css"> -->
-<!--   li {font-size: 10px;} -->
-<!-- </style> -->
-
-
-<!-- <style type="text/css"> -->
-<!--   body { -->
-<!--     font-size: 10px; -->
-<!--   } -->
-<!-- </style> -->
-
 <style type="text/css">
-  <!-- body { -->
-  <!--   font-size: 14px; -->
-  <!-- } -->
+
 
   h1, h2, h3, h4, h5, h6 {
     font-size: 10px; /* Adjust the size as needed */
@@ -100,11 +88,7 @@ con <- etn::connect_to_etn(Sys.getenv("userid"), Sys.getenv("pwd"))
 
 ```{r query etn data, include=FALSE}
 
-# TODO: get stations inside bpns and get open deployments of those and rerun code
-
-# GET STATIONS WITHIN PBARN
-
-MED_acoustic_projects <- c("ResMed","CONNECT-MED")#projects we want to get the info from
+MED_acoustic_projects <- c("ResMed","CONNECT-MED") #projects we want to get the info from
 
 # acoustic deployments
 
@@ -116,34 +100,14 @@ all_deployments <-
 deployments_MED <- all_deployments %>%
   filter(acoustic_project_code %in% MED_acoustic_projects)
 
-#within_BPNS <- sf::st_within(all_deployments, BPNS) %>% # get back list with TRUE or FALSE if deployment location #is within BPNS boundaries
-#  apply(., 1, any)
-#within_Belgium <-  sf::st_within(all_deployments, Belgium) %>% # get back list with TRUE or FALSE if deployment #location is within Belgium's boundaries
-#  apply(., 1, any)
-#within_Schelde_estuary <- sf::st_within(all_deployments, Schelde_estuary) %>% # get back list with TRUE or FALSE #if deployment location is within the Scheldt estuary's boundaries
-#  apply(., 1, any) 
-#
-#
-#deployments_MED <- all_deployments %>%
-#  dplyr::mutate(within_BPNS = within_BPNS,
-#                within_Belgium = within_Belgium) %>%
-#  dplyr::filter(within_BPNS == TRUE | within_BPNS == TRUE | within_Schelde_estuary == TRUE| acoustic_project_code #%in% PBARN_acoustic_projects) # filter out stations that are not in any of the boundaries defined
-#
 stations_MED <- 
   deployments_MED %>% 
     dplyr::select(station_name) %>%
     unique() # get the station names
-#
-# quick map to check
-# leaflet::leaflet() %>%
-#   addTiles() %>%
-#   addPolygons(data = Belgium, fillOpacity = 0, color = 'grey') %>%
-#   addPolygons(data = BPNS, fillOpacity = 0, color = 'grey') %>%
-#   addPolygons(data = Schelde_estuary, fillOpacity = 0, color = 'grey') %>%
-#   addCircleMarkers(data = stations_PBARN)
 
 
 #########
+
 # get currently active deployments
 current_deployments <- etn::get_acoustic_deployments(deployment_id = deployments_MED$deployment_id) 
 
@@ -174,10 +138,6 @@ last_deployments <-
 
 # List of column names you want to convert to factors
 columns_to_factor <- c("deployment_id", "receiver_id", "acoustic_project_code", "station_name", "receiver_model", "receiver_serial_number", "manufacturer", "financing_project", "previous_deployment_id", "previous_recover_date_time", "previous_deploy_date_time", "previous_battery_estimated_end_date", "previous_battery_installation_date", "deploy_date_time", "battery_installation_date", "battery_estimated_end_date")
-
-# # Apply factor() to selected columns using mutate_at
-# your_dataframe <- your_dataframe %>%
-#   mutate_at(vars(columns_to_factor), factor)
 
 current_deployments <- 
   current_deployments %>%
@@ -257,7 +217,6 @@ current_deployments_manual_check <-
                                     ifelse(category == 2, cat2_colour, cat3_colour)),
                   across(-c(deploy_latitude, deploy_longitude), as.factor)) #make all columns factors so they can be selected in the dashboard tables)
 
-
   
 # quick and dirty algorithm
   
@@ -288,27 +247,6 @@ Row {data-height=80}
 knitr::include_graphics("images/etn_logo.png")
 
 ```
-
-
-<!-- ```{r ETN logo} -->
-
-<!-- knitr::include_graphics("https://europeantrackingnetwork.org/sites/europeantrackingnetwork.org/files/managed/logo_ETN.png") -->
-
-<!-- # # Image URL -->
-<!-- # image_url <- "https://europeantrackingnetwork.org/sites/europeantrackingnetwork.org/files/managed/logo_ETN.png" -->
-<!-- #  -->
-<!-- # # Hyperlink URL -->
-<!-- # hyperlink_url <- "https://europeantrackingnetwork.org/en" -->
-<!-- #  -->
-<!-- # # Combine image and hyperlink within an HTML block -->
-<!-- # html_block <- div( -->
-<!-- #   # img(src = image_url, style = "width:70%; height:50%;"), -->
-<!-- #   a(href = hyperlink_url, target = "_blank", "ETN website") -->
-<!-- # ) -->
-<!-- #  -->
-<!-- # # Display the HTML block -->
-<!-- # html_block -->
-<!-- ``` -->
 
 
 ### active deployments {#vBox-active-deployments}
@@ -381,33 +319,24 @@ flexdashboard::gauge(value = num_receivers_batteryok,
 Row {data-height=920}
 ------------------------------------
 
-### Quick info {#about-quickInfo data-width=250}
+### Quick info {#about-quickInfo data-width=350}
 
+Dashboard effective as of **`r Sys.Date()`**
 
-This dashboard gives an overview on all open acoustic deployments within the boundaries of the Belgian Part of the North Sea. 
+***
 
+This dashboard gives an overview on open acoustic deployments within these acoustic project codes: 
+*`r current_deployments$acoustic_project_code %>% unique()`*
 
-> The deployment data was last updated on: `r Sys.Date()`.
+***
 
+**What do the colors on the map mean?**
 
-<!-- ```{r valid-asof, include = TRUE} -->
+* **<span style="color: `r battery_ok_colour`;">Blue</span>**: Battery and metadata are OK
 
-<!-- valueBox(Sys.Date(),  -->
-<!--          caption = "The deployment data was last updated on: ", -->
-<!--          icon = "fa-calendar", -->
-<!--          color = "white") -->
+* **<span style="color: `r needs_bat_change_colour`;">Orange</span>**: Battery is estimated to end in the next `r months_to_maintenance` months
 
-<!-- ``` -->
-
-
-
-The dashboard helps to:
-
-* Identify deployments that require manual checking in the ETN portal
-
-* Get a visual overview of current receiver deployments 
-
-* Plan receiver maintenance campaigns 
+* **<span style="color: `r needs_manual_check_colour`;">Black</span>**: Deployment metadata are not ok -> more info in Tab *2. Manual check in ETN portal*
 
 
 
@@ -417,7 +346,7 @@ DT::datatable(all_deployments %>% head())
 ```
 
 
-### Map {#about-map data-width=750}
+### Map {#about-map data-width=650}
 
 
 ```{r receiver map, out.width="100%", fig.align = 'center', echo=FALSE}
@@ -457,13 +386,7 @@ icon_anchor_connectmed <- leaflet::makeAwesomeIcon(
 receiver_map <- 
   leaflet() %>%
   addTiles() %>%
-  #addPolygons(data = BPNS, color = "darkgrey",
-  #            weight = 2,
-  #            opacity = 1.0,
-  #            fillOpacity = 0) %>%
-#
-    addAwesomeMarkers(data = deployments_ResMed, #%>% 
-                        # dplyr::filter(acoustic_project_code == "ResMed"),
+    addAwesomeMarkers(data = deployments_ResMed,
                    icon = icon_anchor_resmed,
                    lat = ~deploy_latitude,
                    lng = ~deploy_longitude,
@@ -474,7 +397,7 @@ receiver_map <-
                            "<b>Deploy date:</b> ", deploy_date_time, "<br>",
                            "<b>Deployment id:</b> ", deployment_id, "<br>",
                            "<b>Battery installation:</b> ",battery_installation_date, "<br>",
-                           "<b>Estimated battery end:</b> ", battery_estimated_end_date, "<br>", #
+                           "<b>Estimated battery end:</b> ", battery_estimated_end_date, "<br>", 
                            "<b>Receiver battery life (months):</b> ", battery_estimated_life_months, "<br>",
                            "<b>Battery status:</b> ", ifelse(needs_battery_change == "manual check", "Needs manual check",
                                                              ifelse(needs_battery_change == 1, "Needs battery change", "No battery change needed"))
@@ -494,7 +417,7 @@ receiver_map <-
                           "<b>Deploy date:</b> ", deploy_date_time, "<br>",
                           "<b>Deployment id:</b> ", deployment_id, "<br>",
                           "<b>Battery installation:</b> ",battery_installation_date, "<br>",
-                          "<b>Estimated battery end:</b> ", battery_estimated_end_date, "<br>", #
+                          "<b>Estimated battery end:</b> ", battery_estimated_end_date, "<br>", 
                           "<b>Receiver battery life (months):</b> ", battery_estimated_life_months, "<br>",
                           "<b>Battery status:</b> ", ifelse(needs_battery_change == "manual check", "Needs manual check",
                                                             ifelse(needs_battery_change == 1, "Needs battery change", "No battery #change needed"))
@@ -524,7 +447,6 @@ receiver_map
 
 ```
 
-<!-- > When you hover over the map, the fields `battery_installation_date` and `battery_estimated_end_date` are displayed. By clicking on a receiver, the fields `station_name`, `receiver_id`, `deploy_latitude` and `deploy_longitude` are displayed. -->
 
 # 2. Manual Check in ETN portal {#deploymentsQC}
 
@@ -533,13 +455,11 @@ Row {data-height=50}
 
 ### Deployments that need manual check {#deploymentsQC-vBox}
 
-<!-- todo: hrefs to tables (doesn't work...only in new tab) -->
 
 ```{r Deployments that need manual check}
 flexdashboard::valueBox(num_receivers_manualcheck,
                         href = 'https://www.lifewatch.be/etn/login',
                         caption = "currently active deployments need<br>a manual data check in the ETN portal,<br>divided into 3 categories",
-                        # "currently active deployments <br>need a manual data check in the ETN portal, <br>divided into 3 categories",
                         icon = "fa-circle-exclamation",
                         color = 'lightgray')
 ```
@@ -553,7 +473,6 @@ num_deployments_1 <-
 
 flexdashboard::gauge(value = num_deployments_1,
                      min = 0, max = num_receivers_manualcheck,
-                     # href = '#deploymentsQC-table-lost',
                      gaugeSectors(success = c(0, (num_receivers_manualcheck/3)), 
                                   warning = c((num_receivers_manualcheck/3), 2*(num_receivers_manualcheck/3)),
                                   danger = c(2*(num_receivers_manualcheck/3), num_receivers_manualcheck),
@@ -570,7 +489,6 @@ num_deployments_2 <-
 
 flexdashboard::gauge(value = num_deployments_2,
                      min = 0, max = num_receivers_manualcheck, 
-                     # href = '#deploymentsQC-table-noStart',
                      gaugeSectors(success = c(0, (num_receivers_manualcheck/3)),
                                   warning = c((num_receivers_manualcheck/3), 2*(num_receivers_manualcheck/3)),
                                   danger = c(2*(num_receivers_manualcheck/3), num_receivers_manualcheck),
@@ -587,7 +505,6 @@ num_deployments_3 <-
 
 flexdashboard::gauge(value = num_deployments_3,
                      min = 0, max = num_receivers_manualcheck,
-                     # href = '#deploymentsQC-table-noEnd',
                      gaugeSectors(success = c(0, (num_receivers_manualcheck/3)), # show a warning color when 2/3 of currently active receivers need change soon
                                   warning = c((num_receivers_manualcheck/3), 2*(num_receivers_manualcheck/3)),
                                   danger = c(2*(num_receivers_manualcheck/3), num_receivers_manualcheck),
@@ -595,30 +512,9 @@ flexdashboard::gauge(value = num_deployments_3,
                      abbreviateDecimals = 0)
 ```
 
-<!-- >  *Advised action:* Update the `battery_estimated_end_date` according to the `battery_installation_date` and the `battery_estimated_life`. -->
 
 Row {data-height=950}
 -------------------------------------
-
-<!-- new colours for the 3 categories: #BAD1C4, #97A9BF, and #CCB6B6 -->
-
-<!-- ### Quick info {#manualCheck-quickInfo data-width=250} -->
-
-<!-- **Category 1:** For `r current_deployments_1 %>% nrow()` deployments, the `deploy_date_time` was more than `r cutoff_year_closed_deployment` years ago. -->
-
-<!-- * Advised action for the following `r current_deployments_1 %>% nrow()` deployments: **closing the deployment** and/or updating the receiver status. --> 
-
-<!-- *** -->
-
-<!-- **Category 2:** For `r current_deployments_2 %>% nrow()` deployments, the `battery_installation_date` was either not set or lies in the future. -->
-
-<!-- *Advised action:* Update the `battery_installation_date` from the previous deployment, if given there. For `mooring_type == 'surface-buoy'`, the batteries do not get taken out when there is still some battery life left, and the batteries always get replaced with fresh ones. -->
-
-<!-- *** -->
-
-<!-- **<span style=color:#BAD1C4>Category 3:</span>** For `r current_deployments_3 %>% nrow()` deployments, the `battery_estimated_end_date` is missing or lies in the past. -->
-
-<!-- *Advised action:* Update the `battery_estimated_end_date` according to the `battery_installation_date` and the `battery_estimated_life`. -->
 
 
 ### Details about deployments that require manual checking in the ETN portal {data-width=750}
@@ -634,7 +530,6 @@ Row {data-height=950}
 
 ```{r table QCall, echo =F}
 
-#DT::datatable(current_deployments_manual_check)
 DT::datatable(current_deployments_manual_check %>%
               dplyr::select(category, deployment_id, acoustic_project_code, receiver_id, status, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time,
                             comments, acoustic_project_code, mooring_type, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time, previous_recover_date_time, battery_estimated_life_months),
@@ -646,13 +541,6 @@ DT::datatable(current_deployments_manual_check %>%
                 buttons = list('copy', 'print', list(extend = 'collection',
                                                      buttons = c('csv', 'excel', 'pdf'),
                                                      text = 'Download')),
-                # buttons = list('copy', 'csv', 'excel', 'pdf', 'print'),
-                # order = c('bottom'),
-
-              # options = list(
-              #   dom = 'Bfrtip',
-              #   buttons = c('pdf', 'csv', 'excel', 'print','copy'),
-
                 pageLength = current_deployments_1 %>% nrow(),
                 autoWidth = TRUE,
                 columnDefs = list(list(className = 'dt-center', targets = '_all')))
@@ -670,66 +558,7 @@ DT::datatable(current_deployments_manual_check %>%
 
 ```
 
-
-<!-- ###  *Category 1:* Lost receivers or inactive deployment {#deploymentsQC-table-lost} -->
-
-<!-- ```{r table QC1} -->
-<!-- DT::datatable(current_deployments_1 %>% -->
-<!--               dplyr::select(deployment_id, receiver_id, status, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time,  -->
-<!--                             comments, deploy_latitude, deploy_longitude, acoustic_project_code, mooring_type, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time, previous_recover_date_time, battery_estimated_life_months), -->
-<!--               rownames = F, -->
-<!--               filter = 'top',  -->
-<!--               extensions = 'Buttons', -->
-<!--               options = list( -->
-<!--                 dom = 'Bfrtip', -->
-<!--                 buttons = c('pdf', 'csv', 'excel', 'print','copy'), -->
-<!--                 pageLength = current_deployments_1 %>% nrow(), -->
-<!--                 autoWidth = TRUE,  -->
-<!--                 columnDefs = list(list(className = 'dt-center', targets = '_all'))) -->
-<!--               ) %>% -->
-<!--   formatStyle( -->
-<!--   c('receiver_id', 'battery_estimated_end_date'), -->
-<!--   fontWeight = "bold") -->
-
-<!-- ``` -->
-
-<!-- ###  *Category 2:* Battery installation date is empty or wrong {#deploymentsQC-table-noStart} -->
-
-<!-- ```{r table QC2} -->
-<!-- DT::datatable(current_deployments_2 %>% -->
-<!--               dplyr::select(deployment_id, receiver_id, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time,  -->
-<!--                             comments, deploy_latitude, deploy_longitude, acoustic_project_code, mooring_type, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time, previous_recover_date_time, battery_estimated_life_months), -->
-<!--               rownames = F, -->
-<!--               filter = 'top',  -->
-<!--               extensions = 'Buttons', -->
-<!--               options = list( -->
-<!--                 dom = 'Bfrtip', -->
-<!--                 buttons = c('pdf', 'csv', 'excel', 'print','copy'), -->
-<!--                 pageLength = current_deployments_2 %>% nrow(), -->
-<!--                 autoWidth = TRUE,  -->
-<!--                 columnDefs = list(list(className = 'dt-center', targets = '_all'))) -->
-<!--               ) -->
-<!-- ``` -->
-
-<!-- ###  *Category 3:* Battery estimated end date is empty or wrong {#deploymentsQC-table-noEnd} -->
-
-<!-- ```{r table QC3} -->
-<!-- DT::datatable(current_deployments_3 %>% -->
-<!--               dplyr::select(deployment_id, receiver_id, station_name, battery_installation_date, battery_estimated_end_date, deploy_date_time,  -->
-<!--                             comments, deploy_latitude, deploy_longitude, acoustic_project_code, mooring_type, previous_deployment_id, previous_battery_installation_date, previous_deploy_date_time, previous_recover_date_time, battery_estimated_life_months), -->
-<!--               rownames = F, -->
-<!--               filter = 'top',  -->
-<!--               extensions = 'Buttons', -->
-<!--               options = list( -->
-<!--                 dom = 'Bfrtip', -->
-<!--                 buttons = c('pdf', 'csv', 'excel', 'print','copy'), -->
-<!--                 pageLength = current_deployments_3 %>% nrow(), -->
-<!--                 autoWidth = TRUE,  -->
-<!--                 columnDefs = list(list(className = 'dt-center', targets = '_all'))) -->
-<!--               ) -->
-<!-- ``` -->
-
-> To aid with manual data entry in the ETN portal, information on the previous deployment is given.
+<!-- > To aid with manual data entry in the ETN portal, information on the previous deployment is given. -->
 
 # 3. Plan Receiver Maintenance {#table-receiverInfo}
 
